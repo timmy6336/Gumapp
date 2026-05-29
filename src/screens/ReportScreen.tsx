@@ -27,8 +27,19 @@ async function resizeImage(uri: string): Promise<string> {
   return result.uri;
 }
 
+type SurfaceType = 'sidewalk' | 'road' | 'bench' | 'wall' | 'other';
+
+const SURFACE_OPTIONS: { value: SurfaceType; label: string; icon: string }[] = [
+  { value: 'sidewalk', label: 'Sidewalk', icon: '🚶' },
+  { value: 'road', label: 'Road', icon: '🚗' },
+  { value: 'bench', label: 'Bench', icon: '🪑' },
+  { value: 'wall', label: 'Wall', icon: '🧱' },
+  { value: 'other', label: 'Other', icon: '📍' },
+];
+
 export default function ReportScreen() {
   const [photoUri, setPhotoUri] = useState<string | null>(null);
+  const [surfaceType, setSurfaceType] = useState<SurfaceType | null>(null);
   const [loading, setLoading] = useState(false);
   const [lastStatus, setLastStatus] = useState<string | null>(null);
 
@@ -128,7 +139,7 @@ export default function ReportScreen() {
   async function doSubmit(
     userId: string,
     loc: Location.LocationObject
-  ) {
+  ): Promise<void> {
     let photoUrl: string | null = null;
 
     if (photoUri) {
@@ -157,6 +168,7 @@ export default function ReportScreen() {
         longitude: loc.coords.longitude,
         gps_accuracy: loc.coords.accuracy,
         photo_url: photoUrl,
+        surface_type: surfaceType,
         is_verified: false,
       })
       .select()
@@ -213,6 +225,24 @@ export default function ReportScreen() {
           <Text style={styles.photoBtnIcon}>🖼️</Text>
           <Text style={styles.photoBtnText}>Gallery</Text>
         </TouchableOpacity>
+      </View>
+
+      <View style={styles.surfaceSection}>
+        <Text style={styles.surfaceLabel}>Surface type <Text style={styles.optional}>(optional)</Text></Text>
+        <View style={styles.surfaceOptions}>
+          {SURFACE_OPTIONS.map((opt) => (
+            <TouchableOpacity
+              key={opt.value}
+              style={[styles.surfaceBtn, surfaceType === opt.value && styles.surfaceBtnActive]}
+              onPress={() => setSurfaceType(surfaceType === opt.value ? null : opt.value)}
+            >
+              <Text style={styles.surfaceIcon}>{opt.icon}</Text>
+              <Text style={[styles.surfaceBtnText, surfaceType === opt.value && styles.surfaceBtnTextActive]}>
+                {opt.label}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
       </View>
 
       {lastStatus && (
@@ -303,4 +333,23 @@ const styles = StyleSheet.create({
   },
   infoTitle: { color: '#fff', fontSize: 15, fontWeight: '700', marginBottom: 10 },
   infoText: { color: '#888', fontSize: 13, marginBottom: 6 },
+  surfaceSection: { marginBottom: 24 },
+  surfaceLabel: { color: '#ccc', fontSize: 14, fontWeight: '600', marginBottom: 10 },
+  optional: { color: '#555', fontWeight: '400' },
+  surfaceOptions: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  surfaceBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: '#1e1e1e',
+    borderRadius: 20,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderWidth: 1,
+    borderColor: '#333',
+  },
+  surfaceBtnActive: { borderColor: '#4CAF50', backgroundColor: '#1a2a1a' },
+  surfaceIcon: { fontSize: 14 },
+  surfaceBtnText: { color: '#888', fontSize: 13 },
+  surfaceBtnTextActive: { color: '#4CAF50', fontWeight: '700' },
 });

@@ -7,12 +7,18 @@ export interface Profile {
   created_at: string;
 }
 
+export type SurfaceType = 'sidewalk' | 'road' | 'bench' | 'wall' | 'other';
+export type ReportStatus = 'active' | 'removed';
+
 export interface GumReport {
   id: string;
   user_id: string;
   latitude: number;
   longitude: number;
+  gps_accuracy: number | null;
   photo_url: string | null;
+  surface_type: SurfaceType | null;
+  status: ReportStatus;
   is_verified: boolean;
   created_at: string;
   profiles?: Profile;

@@ -1,12 +1,13 @@
 import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createStackNavigator } from '@react-navigation/stack';
-import { Text, TouchableOpacity } from 'react-native';
+import { Text, TouchableOpacity, View } from 'react-native';
 import MapScreen from '../screens/MapScreen';
 import ReportScreen from '../screens/ReportScreen';
 import LeaderboardScreen from '../screens/LeaderboardScreen';
 import ProfileScreen from '../screens/ProfileScreen';
 import PrivacyPolicyScreen from '../screens/PrivacyPolicyScreen';
+import AdminStatsScreen from '../screens/AdminStatsScreen';
 
 const Tab = createBottomTabNavigator();
 const ProfileStack = createStackNavigator();
@@ -40,12 +41,14 @@ function ProfileStackNavigator() {
         options={({ navigation }) => ({
           title: 'Profile',
           headerRight: () => (
-            <TouchableOpacity
-              onPress={() => navigation.navigate('PrivacyPolicy')}
-              style={{ marginRight: 16 }}
-            >
-              <Text style={{ color: '#666', fontSize: 12 }}>Privacy</Text>
-            </TouchableOpacity>
+            <View style={{ flexDirection: 'row', gap: 16, marginRight: 16 }}>
+              <TouchableOpacity onPress={() => navigation.navigate('AdminStats')}>
+                <Text style={{ color: '#666', fontSize: 12 }}>Stats</Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={() => navigation.navigate('PrivacyPolicy')}>
+                <Text style={{ color: '#666', fontSize: 12 }}>Privacy</Text>
+              </TouchableOpacity>
+            </View>
           ),
         })}
       />
@@ -53,6 +56,11 @@ function ProfileStackNavigator() {
         name="PrivacyPolicy"
         component={PrivacyPolicyScreen}
         options={{ title: 'Privacy Policy' }}
+      />
+      <ProfileStack.Screen
+        name="AdminStats"
+        component={AdminStatsScreen}
+        options={{ title: 'Admin Stats' }}
       />
     </ProfileStack.Navigator>
   );
