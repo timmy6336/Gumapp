@@ -1,0 +1,58 @@
+{
+  "expo": {
+    "name": "GumApp",
+    "slug": "gumapp",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "dark",
+    "splash": {
+      "backgroundColor": "#0f0f0f"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.gumapp.app",
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "GumApp needs your location to show gum near you and to pin reports to the right spot.",
+        "NSCameraUsageDescription": "GumApp needs camera access so you can photograph gum you find.",
+        "NSPhotoLibraryUsageDescription": "GumApp needs photo library access so you can attach a photo to your gum report."
+      }
+    },
+    "android": {
+      "package": "com.gumapp.app",
+      "adaptiveIcon": {
+        "backgroundColor": "#0f0f0f",
+        "foregroundImage": "./assets/android-icon-foreground.png"
+      },
+      "permissions": [
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_COARSE_LOCATION",
+        "CAMERA",
+        "READ_EXTERNAL_STORAGE",
+        "WRITE_EXTERNAL_STORAGE"
+      ]
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "GumApp needs your location to show gum near you."
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "GumApp needs photo access to attach pictures to reports.",
+          "cameraPermission": "GumApp needs camera access to photograph gum."
+        }
+      ]
+    ],
+    "extra": {
+      "supabaseUrl": "$EXPO_PUBLIC_SUPABASE_URL",
+      "supabaseAnonKey": "$EXPO_PUBLIC_SUPABASE_ANON_KEY"
+    }
+  }
+}
