@@ -11,7 +11,21 @@ import {
 } from 'react-native';
 import * as Location from 'expo-location';
 import * as ImagePicker from 'expo-image-picker';
+import * as ImageManipulator from 'expo-image-manipulator';
+import * as Sentry from '@sentry/react-native';
 import { supabase } from '../lib/supabase';
+
+const MAX_IMAGE_DIMENSION = 1024;
+const GPS_ACCURACY_THRESHOLD_METERS = 20;
+
+async function resizeImage(uri: string): Promise<string> {
+  const result = await ImageManipulator.manipulateAsync(
+    uri,
+    [{ resize: { width: MAX_IMAGE_DIMENSION } }],
+    { compress: 0.75, format: ImageManipulator.SaveFormat.JPEG }
+  );
+  return result.uri;
+}
 
 export default function ReportScreen() {
   const [photoUri, setPhotoUri] = useState<string | null>(null);
@@ -27,7 +41,7 @@ export default function ReportScreen() {
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       allowsEditing: true,
-      quality: 0.7,
+      quality: 1,
     });
     if (!result.canceled && result.assets[0]) {
       setPhotoUri(result.assets[0].uri);
@@ -42,7 +56,7 @@ export default function ReportScreen() {
     }
     const result = await ImagePicker.launchCameraAsync({
       allowsEditing: true,
-      quality: 0.7,
+      quality: 1,
     });
     if (!result.canceled && result.assets[0]) {
       setPhotoUri(result.assets[0].uri);
@@ -61,68 +75,114 @@ export default function ReportScreen() {
       }
 
       const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High });
+
+      // Reject low-accuracy GPS readings
+      if (loc.coords.accuracy && loc.coords.accuracy > GPS_ACCURACY_THRESHOLD_METERS) {
+        Alert.alert(
+          'GPS signal weak',
+          `Your location accuracy is ±${Math.round(loc.coords.accuracy)}m. Move to an open area and try again.`
+        );
+        return;
+      }
+
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
         Alert.alert('Error', 'You must be logged in to report gum.');
         return;
       }
 
-      let photoUrl: string | null = null;
-
-      if (photoUri) {
-        const ext = photoUri.split('.').pop() ?? 'jpg';
-        const fileName = `${user.id}/${Date.now()}.${ext}`;
-
-        const response = await fetch(photoUri);
-        const blob = await response.blob();
-
-        const { error: uploadError } = await supabase.storage
-          .from('gum-photos')
-          .upload(fileName, blob, { contentType: `image/${ext}` });
-
-        if (uploadError) throw new Error(`Upload failed: ${uploadError.message}`);
-
-        const { data: urlData } = supabase.storage.from('gum-photos').getPublicUrl(fileName);
-        photoUrl = urlData.publicUrl;
+      // Rate limit check
+      const { data: allowed } = await supabase.rpc('check_rate_limit', { p_user_id: user.id });
+      if (!allowed) {
+        Alert.alert('Slow down', 'You can submit up to 10 reports per hour. Try again later.');
+        return;
       }
 
-      const { data: report, error: insertError } = await supabase
-        .from('gum_reports')
-        .insert({
-          user_id: user.id,
-          latitude: loc.coords.latitude,
-          longitude: loc.coords.longitude,
-          photo_url: photoUrl,
-          is_verified: false,
-        })
-        .select()
-        .single();
-
-      if (insertError) throw new Error(insertError.message);
-
-      await supabase.rpc('increment_profile_total', { p_user_id: user.id });
-
-      if (photoUrl && report) {
-        setLastStatus('Verifying photo...');
-        const { data: verifyData, error: verifyError } = await supabase.functions.invoke('verify-gum', {
-          body: { reportId: report.id, photoUrl },
-        });
-
-        if (!verifyError && verifyData?.isGum) {
-          setLastStatus('✅ Verified! This gum counts toward your score.');
-        } else {
-          setLastStatus("📷 Photo submitted but couldn't be verified as gum.");
-        }
-      } else {
-        setLastStatus('📍 Report submitted! Add a photo next time for it to count toward your score.');
+      // Proximity dedup check
+      const { data: hasDuplicate } = await supabase.rpc('check_nearby_report', {
+        p_lat: loc.coords.latitude,
+        p_lng: loc.coords.longitude,
+        p_meters: 10,
+      });
+      if (hasDuplicate) {
+        Alert.alert(
+          'Already reported',
+          'There is already a gum report within 10 meters of this spot.',
+          [
+            { text: 'Cancel', style: 'cancel' },
+            { text: 'Report anyway', onPress: () => doSubmit(user.id, loc) },
+          ]
+        );
+        return;
       }
 
-      setPhotoUri(null);
+      await doSubmit(user.id, loc);
     } catch (err: any) {
+      Sentry.captureException(err);
       Alert.alert('Error', err.message ?? 'Something went wrong');
     } finally {
       setLoading(false);
     }
+  }
+
+  async function doSubmit(
+    userId: string,
+    loc: Location.LocationObject
+  ) {
+    let photoUrl: string | null = null;
+
+    if (photoUri) {
+      // Resize before upload to stay within free storage limits
+      const resizedUri = await resizeImage(photoUri);
+      const fileName = `${userId}/${Date.now()}.jpg`;
+
+      const response = await fetch(resizedUri);
+      const blob = await response.blob();
+
+      const { error: uploadError } = await supabase.storage
+        .from('gum-photos')
+        .upload(fileName, blob, { contentType: 'image/jpeg' });
+
+      if (uploadError) throw new Error(`Upload failed: ${uploadError.message}`);
+
+      const { data: urlData } = supabase.storage.from('gum-photos').getPublicUrl(fileName);
+      photoUrl = urlData.publicUrl;
+    }
+
+    const { data: report, error: insertError } = await supabase
+      .from('gum_reports')
+      .insert({
+        user_id: userId,
+        latitude: loc.coords.latitude,
+        longitude: loc.coords.longitude,
+        gps_accuracy: loc.coords.accuracy,
+        photo_url: photoUrl,
+        is_verified: false,
+      })
+      .select()
+      .single();
+
+    if (insertError) throw new Error(insertError.message);
+
+    await supabase.rpc('increment_profile_total', { p_user_id: userId });
+
+    if (photoUrl && report) {
+      setLastStatus('Verifying photo...');
+      const { data: verifyData, error: verifyError } = await supabase.functions.invoke('verify-gum', {
+        body: { reportId: report.id, photoUrl },
+      });
+
+      if (!verifyError && verifyData?.isGum) {
+        setLastStatus('✅ Verified! This gum counts toward your score.');
+      } else {
+        setLastStatus("📷 Photo submitted but couldn't be verified as gum.");
+      }
+    } else {
+      setLastStatus('📍 Report saved! Add a photo next time for it to count toward your score.');
+    }
+
+    setPhotoUri(null);
+    setLoading(false);
   }
 
   return (
