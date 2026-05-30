@@ -8,6 +8,7 @@ import LeaderboardScreen from '../screens/LeaderboardScreen';
 import ProfileScreen from '../screens/ProfileScreen';
 import PrivacyPolicyScreen from '../screens/PrivacyPolicyScreen';
 import AdminStatsScreen from '../screens/AdminStatsScreen';
+import TrendsScreen from '../screens/TrendsScreen';
 
 const Tab = createBottomTabNavigator();
 const ProfileStack = createStackNavigator();
@@ -17,10 +18,11 @@ function TabIcon({ label, focused }: { label: string; focused: boolean }) {
     Map: '🗺️',
     Report: '➕',
     Leaderboard: '🏆',
+    Trends: '📈',
     Profile: '👤',
   };
   return (
-    <Text style={{ fontSize: 22, opacity: focused ? 1 : 0.5 }}>
+    <Text style={{ fontSize: 20, opacity: focused ? 1 : 0.5 }}>
       {icons[label] ?? label}
     </Text>
   );
@@ -75,11 +77,13 @@ export default function AppNavigator() {
         tabBarActiveTintColor: '#4CAF50',
         tabBarInactiveTintColor: '#666',
         tabBarIcon: ({ focused }) => <TabIcon label={route.name} focused={focused} />,
+        tabBarLabelStyle: { fontSize: 10 },
       })}
     >
       <Tab.Screen name="Map" component={MapScreen} options={{ title: 'Gum Map' }} />
       <Tab.Screen name="Report" component={ReportScreen} />
       <Tab.Screen name="Leaderboard" component={LeaderboardScreen} />
+      <Tab.Screen name="Trends" component={TrendsScreen} options={{ title: 'Nearby Trends' }} />
       <Tab.Screen
         name="Profile"
         component={ProfileStackNavigator}
