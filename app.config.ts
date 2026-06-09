@@ -5,6 +5,17 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   name: 'GumApp',
   slug: 'gumapp',
   scheme: 'gumapp',
+  android: {
+    ...config.android,
+    config: {
+      googleMaps: {
+        // Set GOOGLE_MAPS_API_KEY in your .env.local or as a GitHub Actions secret.
+        // Without it the map tiles still load on most devices, but you'll see a
+        // "This app is not authorized to use Google Maps" watermark.
+        apiKey: process.env.GOOGLE_MAPS_API_KEY ?? '',
+      },
+    },
+  },
   plugins: [
     ...(config.plugins ?? []),
     [
