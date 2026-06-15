@@ -52,7 +52,11 @@ jobs:
       # hangs Gradle instead of failing cleanly. Override with more headroom —
       # the ubuntu-latest runner has 16GB RAM.
       - name: Increase Gradle JVM memory
-        run: echo "org.gradle.jvmargs=-Xmx4096m -XX:MaxMetaspaceSize=1024m -XX:+HeapDumpOnOutOfMemoryError" >> android/gradle.properties
+        # printf (not echo) so this lands on its own line even if gradle.properties
+        # doesn't end with a trailing newline — otherwise it gets concatenated onto
+        # the previous property and corrupts it (breaks reanimated's config-time
+        # node invocation with a fast "non-zero exit value 1" failure).
+        run: printf '\norg.gradle.jvmargs=-Xmx4096m -XX:MaxMetaspaceSize=1024m -XX:+HeapDumpOnOutOfMemoryError\n' >> android/gradle.properties
 
       # assembleRelease bundles the JS into the APK (assets/index.android.bundle),
       # so the app runs standalone without needing a Metro dev server.
