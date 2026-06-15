@@ -1,0 +1,62 @@
+name: Build Android APK
+
+# Trigger manually from the Actions tab — gives you a download link when done.
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Build debug APK
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      # Java 17 is required by the Android Gradle plugin
+      - name: Setup Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Install JS dependencies
+        run: npm ci
+
+      # expo prebuild generates the /android native project from app.config.ts.
+      # We don't commit /android to git, so this step creates it fresh each run.
+      - name: Expo Prebuild (generate Android project)
+        run: npx expo prebuild --platform android --clean --no-install
+        env:
+          EXPO_PUBLIC_SUPABASE_URL: ${{ secrets.EXPO_PUBLIC_SUPABASE_URL }}
+          EXPO_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.EXPO_PUBLIC_SUPABASE_ANON_KEY }}
+          GOOGLE_MAPS_API_KEY: ${{ secrets.GOOGLE_MAPS_API_KEY }}
+          # Suppress Expo telemetry and login prompts in CI
+          EXPO_NO_TELEMETRY: '1'
+
+      - name: Make Gradlew executable
+        run: chmod +x android/gradlew
+
+      # assembleDebug builds a debug APK — no signing keystore needed.
+      # You can install it on any Android device with "Install unknown apps" enabled.
+      - name: Build debug APK
+        run: ./gradlew assembleDebug --no-daemon
+        working-directory: android
+        env:
+          EXPO_PUBLIC_SUPABASE_URL: ${{ secrets.EXPO_PUBLIC_SUPABASE_URL }}
+          EXPO_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.EXPO_PUBLIC_SUPABASE_ANON_KEY }}
+
+      # Upload the APK as a workflow artifact — downloadable from the Actions run page
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: GumApp-debug-${{ github.run_number }}
+          path: android/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+          retention-days: 30
