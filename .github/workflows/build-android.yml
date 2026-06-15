@@ -6,7 +6,7 @@ on:
 
 jobs:
   build:
-    name: Build debug APK
+    name: Build release APK
     runs-on: ubuntu-latest
 
     steps:
@@ -43,10 +43,12 @@ jobs:
       - name: Make Gradlew executable
         run: chmod +x android/gradlew
 
-      # assembleDebug builds a debug APK — no signing keystore needed.
-      # You can install it on any Android device with "Install unknown apps" enabled.
-      - name: Build debug APK
-        run: ./gradlew assembleDebug --no-daemon
+      # assembleRelease bundles the JS into the APK (assets/index.android.bundle),
+      # so the app runs standalone without needing a Metro dev server.
+      # No custom keystore is configured, so Expo's template signs it with the
+      # debug key — installable on any device, but not suitable for the Play Store.
+      - name: Build release APK
+        run: ./gradlew assembleRelease --no-daemon
         working-directory: android
         env:
           EXPO_PUBLIC_SUPABASE_URL: ${{ secrets.EXPO_PUBLIC_SUPABASE_URL }}
@@ -56,7 +58,7 @@ jobs:
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: GumApp-debug-${{ github.run_number }}
-          path: android/app/build/outputs/apk/debug/app-debug.apk
+          name: GumApp-release-${{ github.run_number }}
+          path: android/app/build/outputs/apk/release/app-release.apk
           if-no-files-found: error
           retention-days: 30
