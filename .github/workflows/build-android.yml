@@ -8,6 +8,8 @@ jobs:
   build:
     name: Build release APK
     runs-on: ubuntu-latest
+    # Hard cap so a stuck Gradle build doesn't burn hours of Actions minutes
+    timeout-minutes: 30
 
     steps:
       - name: Checkout
@@ -42,6 +44,15 @@ jobs:
 
       - name: Make Gradlew executable
         run: chmod +x android/gradlew
+
+      # This app pulls in many native modules (maps, reanimated, gesture-handler,
+      # sentry, google-signin, etc). The default Gradle heap/metaspace from Expo's
+      # template (-Xmx2048m -XX:MaxMetaspaceSize=512m) isn't enough for dexing +
+      # resource optimization on a release build and causes a Metaspace OOM that
+      # hangs Gradle instead of failing cleanly. Override with more headroom —
+      # the ubuntu-latest runner has 16GB RAM.
+      - name: Increase Gradle JVM memory
+        run: echo "org.gradle.jvmargs=-Xmx4096m -XX:MaxMetaspaceSize=1024m -XX:+HeapDumpOnOutOfMemoryError" >> android/gradle.properties
 
       # assembleRelease bundles the JS into the APK (assets/index.android.bundle),
       # so the app runs standalone without needing a Metro dev server.
