@@ -7,6 +7,7 @@ import { ActivityIndicator, View } from 'react-native';
 import * as Sentry from '@sentry/react-native';
 import Constants from 'expo-constants';
 import { useAuth } from './src/hooks/useAuth';
+import { IS_SUPABASE_CONFIGURED } from './src/lib/supabase';
 import { useOnboarding } from './src/hooks/useOnboarding';
 import { usePushNotifications } from './src/hooks/usePushNotifications';
 import AppNavigator from './src/navigation/AppNavigator';
@@ -57,13 +58,16 @@ function RootApp() {
   }
 
   const emailUnverified = session && !session.user.email_confirmed_at;
+  // In dev/test builds without Supabase credentials, bypass auth so all
+  // screens are reachable for UI testing.
+  const showApp = session !== null || !IS_SUPABASE_CONFIGURED;
 
   return (
     <NavigationContainer linking={linking}>
       <StatusBar style="light" />
-      {session ? (
+      {showApp ? (
         <>
-          {emailUnverified && <EmailVerificationBanner />}
+          {session && emailUnverified && <EmailVerificationBanner />}
           <AppNavigator />
         </>
       ) : (
