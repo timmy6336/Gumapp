@@ -13,7 +13,7 @@ import * as Location from 'expo-location';
 import * as ImagePicker from 'expo-image-picker';
 import * as ImageManipulator from 'expo-image-manipulator';
 import * as Sentry from '@sentry/react-native';
-import { supabase } from '../lib/supabase';
+import { supabase, IS_SUPABASE_CONFIGURED } from '../lib/supabase';
 
 const MAX_IMAGE_DIMENSION = 1024;
 const GPS_ACCURACY_THRESHOLD_METERS = 20;
@@ -75,6 +75,10 @@ export default function ReportScreen() {
   }
 
   async function submitReport() {
+    if (!IS_SUPABASE_CONFIGURED) {
+      Alert.alert('Dev mode', 'Submission is disabled — set EXPO_PUBLIC_SUPABASE_URL and EXPO_PUBLIC_SUPABASE_ANON_KEY to enable.');
+      return;
+    }
     setLoading(true);
     setLastStatus(null);
 

@@ -11,7 +11,7 @@ import {
 } from 'react-native';
 import MapView, { Marker, Circle, Region } from 'react-native-maps';
 import * as Location from 'expo-location';
-import { supabase } from '../lib/supabase';
+import { supabase, IS_SUPABASE_CONFIGURED } from '../lib/supabase';
 import { GumReport } from '../types';
 
 const DEFAULT_REGION: Region = {
@@ -61,6 +61,7 @@ export default function MapScreen() {
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
 
   useEffect(() => {
+    if (!IS_SUPABASE_CONFIGURED) return;
     supabase.auth.getUser().then(({ data }) => setCurrentUserId(data.user?.id ?? null));
     requestLocation();
     fetchReports();
@@ -131,8 +132,23 @@ export default function MapScreen() {
   const activeReports = reports.filter((r) => r.status !== 'removed');
   const densityCells = showHeatmap ? buildDensityCells(activeReports, region) : [];
   const maxCount = densityCells.reduce((m, c) => Math.max(m, c.count), 1);
-  // Radius in meters: scale with zoom level
   const cellRadius = Math.max(30, region.latitudeDelta * 3000);
+
+  if (!IS_SUPABASE_CONFIGURED) {
+    return (
+      <View style={styles.devContainer}>
+        <Text style={styles.devIcon}>🗺️</Text>
+        <Text style={styles.devTitle}>Map unavailable in dev mode</Text>
+        <Text style={styles.devBody}>
+          To enable the live map, add these secrets in your GitHub repository settings
+          (Settings → Secrets → Actions) and rebuild:
+        </Text>
+        <Text style={styles.devCode}>
+          {'EXPO_PUBLIC_SUPABASE_URL\nEXPO_PUBLIC_SUPABASE_ANON_KEY\nGOOGLE_MAPS_API_KEY'}
+        </Text>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
@@ -321,4 +337,25 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   removeBtnText: { color: '#aaa', fontSize: 13 },
+  devContainer: {
+    flex: 1,
+    backgroundColor: '#0f0f0f',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 32,
+  },
+  devIcon: { fontSize: 64, marginBottom: 20 },
+  devTitle: { color: '#fff', fontSize: 20, fontWeight: '700', textAlign: 'center', marginBottom: 12 },
+  devBody: { color: '#888', fontSize: 14, textAlign: 'center', lineHeight: 22, marginBottom: 16 },
+  devCode: {
+    color: '#4CAF50',
+    fontSize: 12,
+    fontFamily: Platform.OS === 'android' ? 'monospace' : 'Courier',
+    backgroundColor: '#1a1a1a',
+    padding: 14,
+    borderRadius: 10,
+    textAlign: 'left',
+    lineHeight: 20,
+    width: '100%',
+  },
 });
